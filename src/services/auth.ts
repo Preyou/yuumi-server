@@ -1,32 +1,33 @@
-import { Elysia, status, t } from 'elysia'
+import { eq } from 'drizzle-orm'
+import { Elysia } from 'elysia'
+import { z } from 'zod'
 import { pg } from '@/db'
 import { userDTO } from '@/models'
-import formatResponse, { responseDTO } from '@/plugins/formatResponse'
-import jwt from '@/plugins/jwt'
+import { responseDTO } from '@/plugins/formatResponse'
+import { globalPlugin } from '@/plugins/global'
 
-export default (prefix: string) => new Elysia({
-  name: 'router-auth',
+export const authService = new Elysia({
+  name: 'service.auth',
 })
-  .use(jwt)
-  .use(formatResponse)
+  .use(globalPlugin)
   .group(
-    prefix,
+    '/auth',
     {
-      body: t.Pick(userDTO.all, ['password']),
+      body: userDTO.all.pick({
+        password: true,
+      }),
       detail: {
         tags: ['auth'],
       },
+      useAuth: false,
     },
     app =>
       app
         .post(
           '/register',
-          async ({ body }) => {
+          async ({ body, format }) => {
             await pg.db.insert(pg.schemas.tables.users).values(body)
-            return status(201, {
-              data: true,
-              message: '注册成功',
-            })
+            return format(true, 201)
           },
           {
             async beforeHandle({ body }) {
@@ -34,47 +35,39 @@ export default (prefix: string) => new Elysia({
             },
             body: userDTO.insert,
             response: {
-              201: responseDTO(t.Boolean()),
+              201: responseDTO(z.boolean()),
             },
           },
         )
         .group('/sign', app => app
-          .post('/email', async ({ body, jwt, status }) => {
-            const user = await pg.db.query.users.findFirst({
-              where(fields, { eq }) {
-                return eq(fields.email, body.email)
-              },
-            })
-            if (!user) {
-              return status(400, {
-                data: null,
-                message: '用户名或密码错误',
-              })
-            }
+          .post('/email', async ({ body, format, jwt }) => {
+            const users = await pg.db
+              .select()
+              .from(pg.schemas.tables.users)
+              .where(eq(pg.schemas.tables.users.email, body.email))
+              .limit(1)
+
+            const user = users[0]
+            if (!user) { return format(null, 400) }
+
             return await Bun.password.verify(body.password, user.password)
-              ? status(200, {
-                  data: {
-                    token: await jwt.sign({
-                      id: user.id,
-                    }),
-                  },
-                  message: '登录成功',
+              ? format({
+                  token: await jwt.sign({
+                    id: user.id,
+                  } as any),
                 })
-              : status(401, {
-                  data: null,
-                  message: '用户名或密码错误',
-                })
+              : format(null, 401)
           }, {
-            body: t.Object({
-              email: t.String(),
-              password: t.String(),
+            body: z.object({
+              email: z.string().email(),
+              password: z.string(),
             }),
             response: {
-              200: responseDTO(t.Object({
-                token: t.String(),
+              200: responseDTO(z.object({
+                token: z.string(),
               })),
-              400: responseDTO(t.Null()),
-              401: responseDTO(t.Null()),
+              400: responseDTO(z.null()),
+              401: responseDTO(z.null()),
             },
           })),
   )

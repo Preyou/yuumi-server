@@ -1,22 +1,22 @@
-import { createSelectSchema } from 'drizzle-typebox'
-import { t } from 'elysia'
+import { createSelectSchema } from 'drizzle-orm/zod'
+import { z } from 'zod'
 import { pg } from '@/db'
 
-const age = t.Number({ maximum: 200, minimum: 0 })
-const email = t.String({ format: 'email' })
-
-const __select = createSelectSchema(pg.schemas.tables.users, {
-  age,
-  email,
+export const all = createSelectSchema(pg.schemas.tables.users, {
+  age: z.number().min(0).max(200),
+  email: z.string().email(),
 })
 
-export const all = t.Object({
-  ...__select.properties,
-  id: t.Number(),
+export const insert = all.omit({
+  createdAt: true,
+  id: true,
+  updatedAt: true,
 })
 
-export const insert = t.Omit(all, ['id', 'createdAt', 'updatedAt'])
+export const update = insert.partial()
 
-export const update = t.Partial(insert)
+export const select = all.omit({
+  password: true,
+})
 
-export const select = t.Omit(all, ['password'])
+export type UserDTO = z.infer<typeof select>

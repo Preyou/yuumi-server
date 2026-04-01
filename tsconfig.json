@@ -29,5 +29,8 @@
     "erasableSyntaxOnly": true,
     "skipLibCheck": true,
     "noUncheckedSideEffectImports": true
-  }
+  },
+  "exclude": [
+    "drizzle"
+  ]
 }

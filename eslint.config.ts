@@ -15,11 +15,11 @@ export default antfu(
       'eslint-comments/no-unlimited-disable': 'off',
       'func-style': 'off',
       'no-console': ['off'],
+
       'no-param-reassign': 'error',
       'no-template-curly-in-string': 'off',
       'no-unlimited-disable': 'off',
       'object-shorthand': ['error', 'always'],
-
       'perfectionist/sort-classes': [
         'warn',
         {
@@ -35,6 +35,7 @@ export default antfu(
         },
       ],
       'prefer-arrow-callback': 'error',
+      'style/max-statements-per-line': ['error', { max: 2 }],
     },
 
   },

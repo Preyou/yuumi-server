@@ -1,16 +1,17 @@
-import { createSelectSchema } from 'drizzle-typebox'
-import { t } from 'elysia'
+import { createSelectSchema } from 'drizzle-orm/zod'
+import { z } from 'zod'
 import { pg } from '@/db'
 
-const __select = createSelectSchema(pg.schemas.tables.permissions)
+export const all = createSelectSchema(pg.schemas.tables.permissions)
 
-export const all = t.Object({
-  ...__select.properties,
-  id: t.Number(),
+export const insert = all.omit({
+  createdAt: true,
+  id: true,
+  updatedAt: true,
 })
 
-export const insert = t.Omit(all, ['id', 'createdAt', 'updatedAt'])
-
-export const update = t.Partial(insert)
+export const update = insert.partial()
 
 export const select = all
+
+export type PermissionDTO = z.infer<typeof select>

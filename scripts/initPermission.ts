@@ -1,23 +1,50 @@
 import type { OpenAPI3 } from 'openapi-typescript'
-import type { permissionDTO } from '@/models'
+import type { z } from 'zod'
 import axios from 'axios'
+import { serverConfig } from '@/config/env'
+import { permissionDTO } from '@/models'
 import { pg } from '@/db'
 
-const { data: openapi } = await axios.get<OpenAPI3>(import.meta.env.OPENAPI_URL)
+const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options'])
+const openapiUrl = serverConfig.OPENAPI_URL
 
-if (openapi.paths) {
-  const permissions = Object.entries(openapi.paths).map(([path, methods]) => Object.entries(methods).map(([method, { operationId, summary, tags }]) => ({
-    method,
-    name: operationId,
-    path,
-    summary,
-    tags,
-  } as typeof permissionDTO.insert.static))).flat()
+const { data: openapi } = await axios.get<OpenAPI3>(openapiUrl)
 
-  // const permissionsDB = await pg.db.query.permissions.findMany()
+const permissions = Object.entries(openapi.paths ?? {}).flatMap(([path, pathItem]) => {
+  if (!pathItem) {
+    return []
+  }
 
-  // console.log(permissions, permissionsDB)
+  return Object.entries(pathItem).flatMap(([method, operation]) => {
+    if (!HTTP_METHODS.has(method)) {
+      return []
+    }
 
+    if (!operation || typeof operation !== 'object') {
+      return []
+    }
+
+    const operationObject = operation as {
+      operationId?: string
+      summary?: string
+      tags?: string[]
+    }
+    if (!operationObject.operationId) {
+      return []
+    }
+
+    return [{
+      method: method.toUpperCase() as z.infer<typeof permissionDTO.insert>['method'],
+      name: operationObject.operationId,
+      path,
+      isPublic: false,
+      summary: operationObject.summary ?? null,
+      tags: operationObject.tags?.join(',') ?? null,
+    } satisfies z.infer<typeof permissionDTO.insert>]
+  })
+})
+
+if (permissions.length > 0) {
   await pg.db.insert(pg.schemas.tables.permissions)
     .values(permissions)
     .onConflictDoNothing()

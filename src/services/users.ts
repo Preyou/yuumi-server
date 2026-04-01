@@ -1,16 +1,26 @@
-import { Elysia, status, t } from 'elysia'
+import { eq } from 'drizzle-orm'
+import { Elysia } from 'elysia'
+import { z } from 'zod'
 import { pg } from '@/db'
 import { userDTO } from '@/models'
-import formatResponse, { responseDTO } from '@/plugins/formatResponse'
-import jwt from '@/plugins/jwt'
+import { responseDTO } from '@/plugins/formatResponse'
+import { globalPlugin } from '@/plugins/global'
 
-export default (prefix: string) => new Elysia({
-  name: 'router-users',
+const userPublicColumns = {
+  age: pg.schemas.tables.users.age,
+  createdAt: pg.schemas.tables.users.createdAt,
+  email: pg.schemas.tables.users.email,
+  id: pg.schemas.tables.users.id,
+  name: pg.schemas.tables.users.name,
+  updatedAt: pg.schemas.tables.users.updatedAt,
+}
+
+export const usersService = new Elysia({
+  name: 'service.users',
 })
-  .use(jwt)
-  .use(formatResponse)
+  .use(globalPlugin)
   .group(
-    prefix,
+    '/users',
     {
       detail: {
         tags: ['users'],
@@ -19,47 +29,45 @@ export default (prefix: string) => new Elysia({
     },
     app =>
       app
-        .get('/user/:id', async ({ params, status, ...a }) => {
-          console.log(a)
+        .get('/user/:id', async ({ format, params }) => {
+          const users = await pg.db
+            .select(userPublicColumns)
+            .from(pg.schemas.tables.users)
+            .where(eq(pg.schemas.tables.users.id, params.id))
+            .limit(1)
 
-          const user = await pg.db.query.users.findFirst({
-            where(fields, operators) {
-              return operators.eq(fields.id, params.id)
-            },
-          })
+          const user = users[0]
+
           if (!user) {
-            return status(404, {
-              data: null,
-              message: '用户不存在',
-            })
+            return format(null, 404)
           }
-          return status(200, {
-            data: user,
-            message: 'success',
-          })
+
+          return format(user)
         }, {
-          params: t.Object({
-            id: t.Integer(),
+          params: z.object({
+            id: z.coerce.number().int(),
           }),
           response: {
             200: responseDTO(userDTO.select),
-            404: responseDTO(t.Null()),
+            404: responseDTO(z.null()),
           },
         })
-        .get('/me', async ({ auth }) => {
-          const user = await pg.db.query.users.findFirst({
-            where(fields, operators) {
-              return operators.eq(fields.id, auth.id)
-            },
-          })
+        .get('/me', async ({ auth, format }) => {
+          const users = await pg.db
+            .select(userPublicColumns)
+            .from(pg.schemas.tables.users)
+            .where(eq(pg.schemas.tables.users.id, auth.id))
+            .limit(1)
 
-          return status(200, {
-            data: user!,
-            message: 'success',
-          })
+          const user = users[0]
+
+          if (!user) { return format(null, 404) }
+
+          return format(user)
         }, {
           response: {
             200: responseDTO(userDTO.select),
+            404: responseDTO(z.null()),
           },
         }),
   )

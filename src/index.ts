@@ -1,14 +1,13 @@
-import { openapi } from '@elysiajs/openapi'
 import { Elysia } from 'elysia'
-import authRouter from '@/services/auth'
-import usersRouter from '@/services/users'
+import { serverConfig } from '@/config/env'
+import { authService } from './services/auth'
+import { usersService } from './services/users'
 
-const app = new Elysia()
-  .use(openapi())
-  .use(authRouter('/auth'))
-  .use(usersRouter('/users'))
+export const app = new Elysia()
+  .use(authService)
+  .use(usersService)
 
-  .listen(3000)
+app.listen(serverConfig.PORT)
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,

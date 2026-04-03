@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 import { z } from 'zod'
+import { REALTIME_DOMAINS } from '@/constants/realtimeDomains'
 import { pg } from '@/db'
 import { userDTO } from '@/models'
 import { responseDTO } from '@/plugins/formatResponse'
@@ -34,6 +35,7 @@ export const authService = new Elysia({
               body.password = await Bun.password.hash(body.password)
             },
             body: userDTO.insert,
+            domains: [REALTIME_DOMAINS.USER_PROFILE],
             response: {
               201: responseDTO(z.boolean()),
             },

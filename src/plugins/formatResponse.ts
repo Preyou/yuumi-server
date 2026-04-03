@@ -23,6 +23,19 @@ export interface FormatResponsePluginOptions {
   defaultSuccessCode?: RegisteredResponseCode
 }
 
+const RESPONSE_CODE_ERROR_BRAND = Symbol.for('yuumi.response-code-error')
+
+export class ResponseCodeError extends Error {
+  code: RegisteredResponseCode
+  readonly [RESPONSE_CODE_ERROR_BRAND] = true
+
+  constructor(code: RegisteredResponseCode, message = '') {
+    super(message)
+    this.name = 'ResponseCodeError'
+    this.code = code
+  }
+}
+
 const responseFormat = z.object({
   code: z.number(),
   data: z.unknown(),
@@ -55,6 +68,54 @@ function resolveCodeDefinition(
 
 function withDefaultMessage(message: string, fallback: string) {
   return message.length > 0 ? message : fallback
+}
+
+function hasOwn(obj: object, key: PropertyKey) {
+  return Object.prototype.hasOwnProperty.call(obj, key)
+}
+
+function isResponseCodeError(error: unknown): error is ResponseCodeError {
+  if (error instanceof ResponseCodeError) {
+    return true
+  }
+
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  if (!hasOwn(error, RESPONSE_CODE_ERROR_BRAND)) {
+    return false
+  }
+
+  return typeof (error as ResponseCodeError).code === 'number'
+}
+
+function resolveErrorCode(
+  codeMap: ResponseCodeMap,
+  error: unknown,
+  fallback: RegisteredResponseCode,
+) {
+  if (!isResponseCodeError(error)) {
+    return fallback
+  }
+
+  if (!codeMap[error.code]) {
+    return fallback
+  }
+
+  return error.code
+}
+
+function resolveErrorMessage(error: unknown) {
+  if (!error) {
+    return ''
+  }
+
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return ''
 }
 
 export function createFormatResponsePlugin(options: FormatResponsePluginOptions = {}) {
@@ -98,17 +159,14 @@ export function createFormatResponsePlugin(options: FormatResponsePluginOptions 
       return formattedResponse
     })
     .onError((context) => {
-      const definition = resolveCodeDefinition(
-        codeMap,
-        DEFAULT_ERROR_CODE,
-        DEFAULT_ERROR_CODE,
-      )
+      const code = resolveErrorCode(codeMap, context.error, defaultErrorCode)
+      const definition = resolveCodeDefinition(codeMap, code, defaultErrorCode)
 
       const response = {
-        code: DEFAULT_ERROR_CODE,
+        code,
         data: null,
         message: withDefaultMessage(
-          context.error instanceof Error ? context.error.message : '',
+          resolveErrorMessage(context.error),
           definition.message,
         ),
       } satisfies ResponseEnvelope

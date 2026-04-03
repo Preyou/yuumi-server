@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia'
 import { z } from 'zod'
-import { responseDTO } from './formatResponse'
+import { ResponseCodeError, responseDTO } from './formatResponse'
 
 type QueryRecord = Record<string, unknown>
 
@@ -99,7 +99,7 @@ function assertPaginationNumber(
   const result = value ?? fallback
 
   if (!Number.isInteger(result) || result < min || (max !== undefined && result > max)) {
-    throw new Error(`Invalid pagination field "${fieldName}"`)
+    throw new ResponseCodeError(400, `Invalid pagination field "${fieldName}"`)
   }
 
   return result
@@ -170,8 +170,12 @@ export function createPaginationStandardPlugin(config: PaginationRouteOptions = 
                 pagination,
               }
             }
-            catch {
-              throw new Error('Invalid pagination query')
+            catch (error) {
+              if (error instanceof ResponseCodeError) {
+                throw error
+              }
+
+              throw new ResponseCodeError(400, 'Invalid pagination query')
             }
           },
         }

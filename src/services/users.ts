@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 import { z } from 'zod'
+import { REALTIME_DOMAINS } from '@/constants/realtimeDomains'
 import { pg } from '@/db'
 import { userDTO } from '@/models'
 import { responseDTO } from '@/plugins/formatResponse'
@@ -42,13 +43,14 @@ export const usersService = new Elysia({
             return format(null, 404)
           }
 
-          return format(user)
+          return format(userDTO.toUserApi(user))
         }, {
+          domains: [REALTIME_DOMAINS.USER_PROFILE],
           params: z.object({
             id: z.coerce.number().int(),
           }),
           response: {
-            200: responseDTO(userDTO.select),
+            200: responseDTO(userDTO.selectApi),
             404: responseDTO(z.null()),
           },
         })
@@ -63,10 +65,11 @@ export const usersService = new Elysia({
 
           if (!user) { return format(null, 404) }
 
-          return format(user)
+          return format(userDTO.toUserApi(user))
         }, {
+          domains: [REALTIME_DOMAINS.USER_PROFILE],
           response: {
-            200: responseDTO(userDTO.select),
+            200: responseDTO(userDTO.selectApi),
             404: responseDTO(z.null()),
           },
         }),

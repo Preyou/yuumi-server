@@ -4,10 +4,12 @@ import { z } from 'zod'
 import { serverConfig } from '@/config/env'
 import { createFormatResponsePlugin } from './formatResponse'
 import { createIdempotencyPlugin } from './idempotency'
+import { createAuthorizePlugin } from './authorize'
 import jwt from './jwt'
 import { createListQueryWhitelistPlugin } from './listQueryWhitelist'
 import { createLoggerPlugin } from './logger'
 import { createPaginationStandardPlugin } from './paginationStandard'
+import { createRealtimeDomainPlugin } from './realtimeDomain'
 
 const idempotencyPluginOptions = serverConfig.IDEMPOTENCY_TTL_MS === undefined
   ? undefined
@@ -33,11 +35,16 @@ export const globalPlugin = new Elysia({
     path: serverConfig.OPENAPI_URL,
   }))
   .use(createLoggerPlugin({
-    level: serverConfig.LOG_LEVEL,
+    logsDir: serverConfig.LOG_FILE_DIR,
+    logsMaxBytes: serverConfig.LOG_FILE_MAX_BYTES,
+    logsRetentionDays: serverConfig.LOG_FILE_RETENTION_DAYS,
+    mask: serverConfig.LOG_MASK,
   }))
   .use(createFormatResponsePlugin())
   .use(createIdempotencyPlugin(idempotencyPluginOptions))
   .use(createPaginationStandardPlugin())
   .use(createListQueryWhitelistPlugin())
   .use(jwt)
+  .use(createAuthorizePlugin())
+  .use(createRealtimeDomainPlugin())
   .as('scoped')

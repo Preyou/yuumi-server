@@ -1,12 +1,14 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
 
-const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent'] as const
+const SERVER_ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const REQUIRED_ENV_KEYS = [
+  'API_PREFIX',
   'APP_ENV',
   'DATABASE_URL',
   'JWT_SECRET',
   'OPENAPI_URL',
-  'OTEL_ENABLED',
   'PORT',
 ] as const
 
@@ -34,6 +36,30 @@ function readText(input: unknown): string | undefined {
   return text.length > 0 ? text : undefined
 }
 
+function resolveLogFileDir(input: string | undefined) {
+  if (!input) { return undefined }
+
+  if (path.isAbsolute(input)) {
+    return path.normalize(input)
+  }
+
+  return path.resolve(SERVER_ROOT_DIR, input)
+}
+
+function normalizeApiPrefix(input: string) {
+  const value = input.trim()
+
+  if (!value.startsWith('/')) {
+    throw new Error('API_PREFIX must start with "/"')
+  }
+
+  if (value.length > 1 && value.endsWith('/')) {
+    return value.slice(0, -1)
+  }
+
+  return value
+}
+
 function assertRequiredEnvironment(rawEnv: Record<string, unknown>) {
   const missingKeys = REQUIRED_ENV_KEYS.filter(key => !readText(rawEnv[key]))
 
@@ -50,17 +76,21 @@ const rawEnv = import.meta.env as unknown as Record<string, unknown>
 assertRequiredEnvironment(rawEnv)
 
 const envInput = {
+  API_PREFIX: readText(rawEnv.API_PREFIX),
   APP_ENV: readText(rawEnv.APP_ENV),
   DATABASE_URL: readText(rawEnv.DATABASE_URL),
   IDEMPOTENCY_TTL_MS: rawEnv.IDEMPOTENCY_TTL_MS,
   JWT_SECRET: readText(rawEnv.JWT_SECRET),
-  LOG_LEVEL: readText(rawEnv.LOG_LEVEL),
+  LOG_FILE_DIR: readText(rawEnv.LOG_FILE_DIR),
+  LOG_FILE_MAX_BYTES: rawEnv.LOG_FILE_MAX_BYTES,
+  LOG_FILE_RETENTION_DAYS: rawEnv.LOG_FILE_RETENTION_DAYS,
+  LOG_MASK: rawEnv.LOG_MASK,
   OPENAPI_URL: readText(rawEnv.OPENAPI_URL),
-  OTEL_ENABLED: readText(rawEnv.OTEL_ENABLED),
   PORT: readText(rawEnv.PORT),
 }
 
 const envSchema = z.object({
+  API_PREFIX: z.string().trim().min(1),
   APP_ENV: z.enum(['development', 'production', 'test']),
   DATABASE_URL: z.string().trim().min(1),
   IDEMPOTENCY_TTL_MS: z.preprocess(
@@ -68,9 +98,20 @@ const envSchema = z.object({
     z.number().int().positive().optional(),
   ),
   JWT_SECRET: z.string().trim().min(1),
-  LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
+  LOG_FILE_DIR: z.string().trim().min(1).optional(),
+  LOG_FILE_MAX_BYTES: z.preprocess(
+    parseOptionalInt,
+    z.number().int().positive().optional(),
+  ),
+  LOG_FILE_RETENTION_DAYS: z.preprocess(
+    parseOptionalInt,
+    z.number().int().positive().optional(),
+  ),
+  LOG_MASK: z.preprocess(
+    parseOptionalInt,
+    z.number().int().nonnegative().optional(),
+  ),
   OPENAPI_URL: z.string().trim().min(1),
-  OTEL_ENABLED: z.enum(['0', '1']),
   PORT: z.preprocess(
     parseOptionalInt,
     z.number().int().min(1).max(65535),
@@ -86,10 +127,14 @@ if (!parsedEnv.success) {
   throw new Error(`Invalid server environment: ${details}`)
 }
 
+const logFileDir = resolveLogFileDir(parsedEnv.data.LOG_FILE_DIR)
+const apiPrefix = normalizeApiPrefix(parsedEnv.data.API_PREFIX)
+
 export const serverConfig = {
   ...parsedEnv.data,
+  API_PREFIX: apiPrefix,
+  LOG_FILE_DIR: logFileDir,
   isDevelopment: parsedEnv.data.APP_ENV === 'development',
-  otelEnabled: parsedEnv.data.OTEL_ENABLED === '1',
 } as const
 
 export type ServerEnv = typeof serverConfig

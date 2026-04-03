@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia'
 import { z } from 'zod'
+import { ResponseCodeError } from './formatResponse'
 
 type QueryRecord = Record<string, unknown>
 type SortOrder = 'asc' | 'desc'
@@ -112,19 +113,19 @@ export function createListQueryWhitelistPlugin(config: Partial<ListQueryWhitelis
 
             const unknownKeys = Object.keys(queryRecord).filter(key => !allowQueryKeys.has(key))
             if (unknownKeys.length > 0)
-              throw new Error(`Unknown query keys: ${unknownKeys.join(', ')}`)
+              throw new ResponseCodeError(400, `Unknown query keys: ${unknownKeys.join(', ')}`)
 
             const sortBy = readText(queryRecord, currentConfig.sortByKey)
             const sortOrderRaw = readText(queryRecord, currentConfig.sortOrderKey)?.toLowerCase()
 
             if (sortBy && !allowedSortFields.has(sortBy))
-              throw new Error(`Invalid sortBy field: ${sortBy}`)
+              throw new ResponseCodeError(400, `Invalid sortBy field: ${sortBy}`)
 
             if (!sortBy && sortOrderRaw)
-              throw new Error(`sortOrder requires sortBy: ${sortOrderRaw}`)
+              throw new ResponseCodeError(400, `sortOrder requires sortBy: ${sortOrderRaw}`)
 
             if (sortOrderRaw && sortOrderRaw !== 'asc' && sortOrderRaw !== 'desc')
-              throw new Error(`Invalid sortOrder: ${sortOrderRaw}`)
+              throw new ResponseCodeError(400, `Invalid sortOrder: ${sortOrderRaw}`)
 
             const sortOrder = (
               sortOrderRaw

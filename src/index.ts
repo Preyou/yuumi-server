@@ -4,8 +4,9 @@ import { authService } from './services/auth'
 import { usersService } from './services/users'
 
 export const app = new Elysia()
-  .use(authService)
-  .use(usersService)
+  .group(serverConfig.API_PREFIX, app => app
+    .use(authService)
+    .use(usersService))
 
 app.listen(serverConfig.PORT)
 

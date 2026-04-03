@@ -1,12 +1,19 @@
 import {
   Idempotency,
   IdempotencyError,
+  IdempotencyErrorCodes,
   type IdempotencyOptions,
   type IdempotencyParams,
 } from '@node-idempotency/core'
 import { MemoryStorageAdapter } from '@node-idempotency/storage-adapter-memory'
 import { Elysia } from 'elysia'
-import { RESPONSE_CODE_MAP, type ResponseCodeMap } from '@/constants/responseCodeMap'
+import { z } from 'zod'
+import {
+  RESPONSE_CODE_MAP,
+  type RegisteredResponseCode,
+  type ResponseCodeMap,
+} from '@/constants/responseCodeMap'
+import { ResponseCodeError, responseDTO } from '../formatResponse'
 
 const IDEMPOTENCY_STATE = Symbol.for('yuumi.idempotency.state')
 const RESPONSE_CODE_INDEX: ResponseCodeMap = { ...RESPONSE_CODE_MAP }
@@ -167,9 +174,24 @@ function toIdempotencyRequest(
   }
 }
 
+function resolveIdempotencyErrorCode(error: IdempotencyError): RegisteredResponseCode {
+  const codeMap: Record<IdempotencyErrorCodes, RegisteredResponseCode> = {
+    [IdempotencyErrorCodes.IDEMPOTENCY_FINGERPRINT_MISSMATCH]: 409,
+    [IdempotencyErrorCodes.IDEMPOTENCY_KEY_LEN_EXEEDED]: 400,
+    [IdempotencyErrorCodes.IDEMPOTENCY_KEY_MISSING]: 400,
+    [IdempotencyErrorCodes.REQUEST_IN_PROGRESS]: 409,
+  }
+
+  return codeMap[error.code] ?? 409
+}
+
 function toError(error: unknown) {
-  if (error instanceof IdempotencyError)
-    return new Error(error.message)
+  if (error instanceof IdempotencyError) {
+    return new ResponseCodeError(
+      resolveIdempotencyErrorCode(error),
+      error.message,
+    )
+  }
 
   return error instanceof Error
     ? error
@@ -181,11 +203,13 @@ function stripDebugFields(response: unknown) {
     return response
 
   const source = response as Record<string, unknown>
-  if (!('requestId' in source))
+  if (!('requestId' in source) && !('traceId' in source))
     return response
 
-  const { requestId: _ignored, ...rest } = source
-  return rest
+  const output = { ...source }
+  delete output.requestId
+  delete output.traceId
+  return output
 }
 
 function createFinalizedResponse(
@@ -222,12 +246,18 @@ export function createIdempotencyPlugin(options: IdempotencyPluginOptions = {}) 
     name: 'idempotency-plugin',
   })
     .macro({
-      useIdempotency: (routeOptions: boolean | IdempotencyRouteOptions = true) => {
+      useIdempotency: (routeOptions: boolean | IdempotencyRouteOptions = false) => {
         const normalizedRouteOptions = normalizeRouteOptions(routeOptions)
-        const routeEnabled = normalizedRouteOptions.enabled ?? true
+        const routeEnabled = normalizedRouteOptions.enabled ?? false
 
-        return {
-          async beforeHandle(context) {
+        const hooks = {
+          response: routeEnabled
+            ? {
+                400: responseDTO(z.null()),
+                409: responseDTO(z.null()),
+              }
+            : undefined,
+          async beforeHandle(context: any) {
             if (!routeEnabled)
               return
 
@@ -257,7 +287,7 @@ export function createIdempotencyPlugin(options: IdempotencyPluginOptions = {}) 
               throw toError(error)
             }
           },
-          async afterHandle(context) {
+          async afterHandle(context: any) {
             const state = getRequestState(context)
             if (!state || state.finalized)
               return
@@ -281,7 +311,7 @@ export function createIdempotencyPlugin(options: IdempotencyPluginOptions = {}) 
               clearRequestState(context)
             }
           },
-          async error(context) {
+          async error(context: any) {
             const state = getRequestState(context)
             if (!state || state.finalized)
               return
@@ -311,6 +341,8 @@ export function createIdempotencyPlugin(options: IdempotencyPluginOptions = {}) 
             }
           },
         }
+
+        return hooks
       },
     })
     .as('scoped')

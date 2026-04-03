@@ -3,6 +3,7 @@ import { Elysia } from 'elysia'
 import { z } from 'zod'
 import { serverConfig } from '@/config/env'
 import { userDTO } from '@/models'
+import { ResponseCodeError, responseDTO } from './formatResponse'
 
 export default new Elysia({
   name: 'jwt-plugin',
@@ -14,9 +15,6 @@ export default new Elysia({
     alg: 'HS256',
     exp: '15m',
     name: 'jwt',
-    schema: userDTO.select.pick({
-      id: true,
-    }) as any,
     secret: serverConfig.JWT_SECRET,
   }))
   .macro({
@@ -26,18 +24,32 @@ export default new Elysia({
 
       return {
         headers: z.object({
-          authorization: z.string().regex(/^Bearer\s.+/),
+          authorization: z.string().optional(),
         }),
+        response: {
+          401: responseDTO(z.null()),
+        },
         async resolve({ authSchema, headers, jwt }) {
           const token = headers.authorization?.startsWith('Bearer ')
             ? headers.authorization.slice(7)
             : undefined
 
-          const auth = await jwt.verify(token)
+          if (!token) {
+            throw new ResponseCodeError(401)
+          }
+
+          let auth: unknown
+          try {
+            auth = await jwt.verify(token)
+          }
+          catch {
+            throw new ResponseCodeError(401)
+          }
+
           const parsedAuth = authSchema.safeParse(auth)
 
-          if (!token || !parsedAuth.success) {
-            throw new Error('unauthorized')
+          if (!parsedAuth.success) {
+            throw new ResponseCodeError(401)
           }
 
           return {

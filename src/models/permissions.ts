@@ -1,8 +1,16 @@
-import { createSelectSchema } from 'drizzle-orm/zod'
 import { z } from 'zod'
-import { pg } from '@/db'
 
-export const all = createSelectSchema(pg.schemas.tables.permissions)
+export const all = z.object({
+  createdAt: z.date(),
+  id: z.number().int().positive(),
+  isPublic: z.boolean(),
+  method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']),
+  name: z.string().min(1).max(255),
+  path: z.string().min(1).max(100),
+  summary: z.string().nullable(),
+  tags: z.string().nullable(),
+  updatedAt: z.date(),
+})
 
 export const insert = all.omit({
   createdAt: true,

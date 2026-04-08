@@ -2,10 +2,9 @@ import { eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 import { z } from 'zod'
 import { REALTIME_DOMAINS } from '@/constants/realtimeDomains'
-import { pg } from '@/db'
+import { globalPlugin } from '@/global'
 import { userDTO } from '@/models'
 import { responseDTO } from '@/plugins/formatResponse'
-import { globalPlugin } from '@/plugins/global'
 
 export const authService = new Elysia({
   name: 'service.auth',
@@ -26,8 +25,8 @@ export const authService = new Elysia({
       app
         .post(
           '/register',
-          async ({ body, format }) => {
-            await pg.db.insert(pg.schemas.tables.users).values(body)
+          async ({ body, db, format }) => {
+            await db.insert(db.tables.users).values(body)
             return format(true, 201)
           },
           {
@@ -42,13 +41,12 @@ export const authService = new Elysia({
           },
         )
         .group('/sign', app => app
-          .post('/email', async ({ body, format, jwt }) => {
-            const users = await pg.db
+          .post('/email', async ({ body, db, format, jwt }) => {
+            const users = await db
               .select()
-              .from(pg.schemas.tables.users)
-              .where(eq(pg.schemas.tables.users.email, body.email))
+              .from(db.tables.users)
+              .where(eq(db.tables.users.email, body.email))
               .limit(1)
-
             const user = users[0]
             if (!user) { return format(null, 400) }
 
@@ -56,12 +54,12 @@ export const authService = new Elysia({
               ? format({
                   token: await jwt.sign({
                     id: user.id,
-                  } as any),
+                  }),
                 })
               : format(null, 401)
           }, {
             body: z.object({
-              email: z.string().email(),
+              email: z.email(),
               password: z.string(),
             }),
             response: {

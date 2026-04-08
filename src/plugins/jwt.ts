@@ -1,10 +1,11 @@
 import { jwt } from '@elysiajs/jwt'
 import { Elysia } from 'elysia'
 import { z } from 'zod'
+import env from '@/env'
 import { userDTO } from '@/models'
 import { ResponseCodeError, responseDTO } from './formatResponse'
 
-const jwtSecret = import.meta.env.JWT_SECRET
+const jwtSecret = env.jwtSecret
 
 export default new Elysia({
   name: 'jwt-plugin',

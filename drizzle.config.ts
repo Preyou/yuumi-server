@@ -1,4 +1,5 @@
 import { defineConfig } from 'drizzle-kit'
+import drizzleEnv from './src/drizzle-env'
 
 const DIALECT_TO_SCHEMA_DIR = {
   mysql: 'mysql',
@@ -14,11 +15,11 @@ const DIALECT_TO_MIGRATION_OUT_DIR = {
 
 type DrizzleDialect = keyof typeof DIALECT_TO_SCHEMA_DIR
 
-const dialect = (import.meta.env.DIALECT?.trim().toLowerCase() as DrizzleDialect | undefined) ?? 'postgresql'
+const dialect: DrizzleDialect = drizzleEnv.dialect
 
 export default defineConfig({
   dbCredentials: {
-    url: import.meta.env.DATABASE_URL, // 只用环境变量
+    url: drizzleEnv.databaseUrl,
     // 或分开写：host, port, user: process.env.DB_USER, password: process.env.DB_PASSWORD 等
   },
   dialect,

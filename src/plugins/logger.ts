@@ -7,6 +7,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import { Elysia } from 'elysia'
+import env from '@/env'
 
 const TRACE_ID_STATE = Symbol.for('yuumi.trace-id')
 const REQUEST_LOG_STATE = Symbol.for('yuumi.request-log')
@@ -162,11 +163,9 @@ export function bits(...values: number[]) {
   return values.reduce((mask, value) => mask | value, 0)
 }
 
-const appEnv = import.meta.env.NODE_ENV
+const appEnv = env.nodeEnv
 const isDevelopment = appEnv === 'development'
-const envLogMask = import.meta.env.LOG_MASK
-  ? Number.parseInt(import.meta.env.LOG_MASK, 10)
-  : undefined
+const envLogMask = env.logMask
 
 function normalizeRedactKeys(keys?: readonly string[]) {
   const normalized = new Set<string>(

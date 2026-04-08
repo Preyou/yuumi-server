@@ -1,3 +1,8 @@
 import { drizzle } from 'drizzle-orm/mysql2'
+import drizzleEnv from '@/drizzle-env'
+import * as tables from './schemas/tables'
 
-export default drizzle(import.meta.env.DATABASE_URL)
+export default drizzle(drizzleEnv.databaseUrl, {
+  mode: 'default',
+  schema: tables,
+})

@@ -2,19 +2,9 @@ import { eq } from 'drizzle-orm'
 import { Elysia } from 'elysia'
 import { z } from 'zod'
 import { REALTIME_DOMAINS } from '@/constants/realtimeDomains'
-import { pg } from '@/db'
 import { userDTO } from '@/models'
 import { responseDTO } from '@/plugins/formatResponse'
-import { globalPlugin } from '@/plugins/global'
-
-const userPublicColumns = {
-  age: pg.schemas.tables.users.age,
-  createdAt: pg.schemas.tables.users.createdAt,
-  email: pg.schemas.tables.users.email,
-  id: pg.schemas.tables.users.id,
-  name: pg.schemas.tables.users.name,
-  updatedAt: pg.schemas.tables.users.updatedAt,
-}
+import { globalPlugin } from '@/global'
 
 export const usersService = new Elysia({
   name: 'service.users',
@@ -30,13 +20,12 @@ export const usersService = new Elysia({
     },
     app =>
       app
-        .get('/user/:id', async ({ format, params }) => {
-          const users = await pg.db
-            .select(userPublicColumns)
-            .from(pg.schemas.tables.users)
-            .where(eq(pg.schemas.tables.users.id, params.id))
+        .get('/user/:id', async ({ db, format, params }) => {
+          const users = await db
+            .select()
+            .from(db.tables.users)
+            .where(eq(db.tables.users.id, params.id))
             .limit(1)
-
           const user = users[0]
 
           if (!user) {
@@ -54,13 +43,12 @@ export const usersService = new Elysia({
             404: responseDTO(z.null()),
           },
         })
-        .get('/me', async ({ auth, format }) => {
-          const users = await pg.db
-            .select(userPublicColumns)
-            .from(pg.schemas.tables.users)
-            .where(eq(pg.schemas.tables.users.id, auth.id))
+        .get('/me', async ({ auth, db, format }) => {
+          const users = await db
+            .select()
+            .from(db.tables.users)
+            .where(eq(db.tables.users.id, auth.id))
             .limit(1)
-
           const user = users[0]
 
           if (!user) { return format(null, 404) }

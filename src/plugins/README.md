@@ -39,8 +39,11 @@
 - `global.ts`
   - 治理包装插件，组合 OpenAPI 契约、日志、响应格式、幂等、分页、查询白名单、认证与鉴权插件
   - 供每个路由插件通过 `.use(globalPlugin)` 复用
-- `import.meta.env`
-  - 各模块直接读取环境变量，并只做必要类型转换
+- `src/env.ts`
+  - 统一解析、类型转换与必填校验环境变量
+  - 默认导出只读对象（`Object.freeze`）
+  - 业务模块禁止直接读取 `import.meta.env`
+  - 规则文档：`docs/env-rules.md`
 - `src/utils/time.ts`
   - 统一时间戳工具与 schema（毫秒时间戳）
 
@@ -50,7 +53,7 @@
 
 ```ts
 import { Elysia } from 'elysia'
-import { globalPlugin } from '@/plugins/global'
+import { globalPlugin } from '@/global'
 
 export const usersService = new Elysia({
   name: 'service.users',
@@ -63,18 +66,16 @@ export const usersService = new Elysia({
 
 ```ts
 import { Elysia } from 'elysia'
+import env from '@/env'
 import { authService } from '@/services/auth'
 import { usersService } from '@/services/users'
 
-const apiPrefix = import.meta.env.API_PREFIX ?? '/api'
-const port = Number.parseInt(import.meta.env.PORT ?? '3000', 10)
-
 export const app = new Elysia()
-  .group(apiPrefix, app => app
+  .group(env.apiPrefix, app => app
     .use(authService)
     .use(usersService))
 
-app.listen(port)
+app.listen(env.port)
 ```
 
 ## Response Plugin
@@ -386,7 +387,7 @@ const responseSchema = z.object({
 默认规则：
 
 - 对外根前缀统一由环境变量 `API_PREFIX` 提供
-- 在 `src/index.ts` 通过父级 `.group(import.meta.env.API_PREFIX, ...)` 挂载
+- 在 `src/index.ts` 通过父级 `.group(env.apiPrefix, ...)` 挂载
 - 各 service 内仅写相对路径（如 `/auth`、`/users`）
 
 分页响应快捷工具（避免重复写 response 声明）：

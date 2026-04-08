@@ -39,8 +39,8 @@
 - `global.ts`
   - 治理包装插件，组合 OpenAPI 契约、日志、响应格式、幂等、分页、查询白名单、认证与鉴权插件
   - 供每个路由插件通过 `.use(globalPlugin)` 复用
-- `src/config/env.ts`
-  - 统一基于 `import.meta.env` 做环境变量读取与 `zod` 校验（启动即 fail-fast）
+- `import.meta.env`
+  - 各模块直接读取环境变量，并只做必要类型转换
 - `src/utils/time.ts`
   - 统一时间戳工具与 schema（毫秒时间戳）
 
@@ -63,16 +63,18 @@ export const usersService = new Elysia({
 
 ```ts
 import { Elysia } from 'elysia'
-import { serverConfig } from '@/config/env'
 import { authService } from '@/services/auth'
 import { usersService } from '@/services/users'
 
+const apiPrefix = import.meta.env.API_PREFIX ?? '/api'
+const port = Number.parseInt(import.meta.env.PORT ?? '3000', 10)
+
 export const app = new Elysia()
-  .group(serverConfig.API_PREFIX, app => app
+  .group(apiPrefix, app => app
     .use(authService)
     .use(usersService))
 
-app.listen(serverConfig.PORT)
+app.listen(port)
 ```
 
 ## Response Plugin
@@ -165,8 +167,8 @@ if (!authorized) {
 默认规则：
 
 - 自动日志默认位图：
-  - `APP_ENV=development` 时默认 `LogMasks.DEV_DEFAULT`（全量请求/响应参数，不写文件）
-  - `APP_ENV=production` 时默认 `LogMasks.PROD_DEFAULT`（仅错误时记录参数与响应值，并写文件）
+  - `NODE_ENV=development` 时默认 `LogMasks.DEV_DEFAULT`（全量请求/响应参数，不写文件）
+  - `NODE_ENV=production` 时默认 `LogMasks.PROD_DEFAULT`（仅错误时记录参数与响应值，并写文件）
 - 每个请求都会维护 `traceId`，并通过响应头 `x-trace-id` 返回
 - 日志会默认脱敏敏感字段（如 `authorization`、`cookie`、`password`、`token`）
 - 可选文件日志目录 `LOG_FILE_DIR`（不传则不写文件）
@@ -203,7 +205,7 @@ import { createLoggerPlugin, LogBits, LogMasks, bits } from '@/plugins/logger'
 
 new Elysia()
   .use(createLoggerPlugin({
-    // 不传则按 APP_ENV 走默认位图
+    // 不传则按 NODE_ENV 走默认位图
     mask: LogMasks.INFO,
     // 文件目录由全局配置控制，插件可显式传入覆盖
     logsDir: 'logs',
@@ -384,7 +386,7 @@ const responseSchema = z.object({
 默认规则：
 
 - 对外根前缀统一由环境变量 `API_PREFIX` 提供
-- 在 `src/index.ts` 通过父级 `.group(serverConfig.API_PREFIX, ...)` 挂载
+- 在 `src/index.ts` 通过父级 `.group(import.meta.env.API_PREFIX, ...)` 挂载
 - 各 service 内仅写相对路径（如 `/auth`、`/users`）
 
 分页响应快捷工具（避免重复写 response 声明）：

@@ -4,14 +4,14 @@
   "module": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun --watch --env-file=env --env-file=env.development --env-file=env.development.local src/index.ts",
-    "start:dev": "bun --env-file=env --env-file=env.development --env-file=env.development.local src/index.ts",
-    "start:test": "bun --env-file=env --env-file=env.test --env-file=env.test.local src/index.ts",
-    "start:prod": "bun --env-file=env --env-file=env.production --env-file=env.production.local src/index.ts",
-    "docs:response-codes": "bun scripts/generateResponseCodeDoc.ts",
-    "db:introspect": "bun --bun drizzle-kit introspect",
-    "db:generate": "bun --bun drizzle-kit generate",
-    "db:push": "bun --bun drizzle-kit push"
+    "dev": "NODE_ENV=development bun --watch src/index.ts",
+    "start:dev": "NODE_ENV=development bun src/index.ts",
+    "start:test": "NODE_ENV=test bun src/index.ts",
+    "start:prod": "NODE_ENV=production bun src/index.ts",
+    "db:introspect": "set -a; [ -f .env ] && . .env; [ -f .env.development ] && . .env.development; [ -f .env.local ] && . .env.local; [ -f .env.development.local ] && . .env.development.local; set +a; NODE_ENV=development bunx drizzle-kit introspect",
+    "db:generate": "set -a; [ -f .env ] && . .env; [ -f .env.development ] && . .env.development; [ -f .env.local ] && . .env.local; [ -f .env.development.local ] && . .env.development.local; set +a; NODE_ENV=development bunx drizzle-kit generate",
+    "db:push": "set -a; [ -f .env ] && . .env; [ -f .env.development ] && . .env.development; [ -f .env.local ] && . .env.local; [ -f .env.development.local ] && . .env.development.local; set +a; NODE_ENV=development bunx drizzle-kit push",
+    "db:migrate": "set -a; [ -f .env ] && . .env; [ -f .env.development ] && . .env.development; [ -f .env.local ] && . .env.local; [ -f .env.development.local ] && . .env.development.local; set +a; NODE_ENV=development bunx drizzle-kit migrate"
   },
   "dependencies": {
     "@bogeychan/elysia-logger": "^0.1.10",
@@ -23,16 +23,17 @@
     "@node-idempotency/core": "^1.0.11",
     "@node-idempotency/storage-adapter-memory": "^1.0.5",
     "@types/pg": "^8.16.0",
-    "drizzle-kit": "^0.31.8",
+    "drizzle-kit": "^1.0.0-beta.20",
     "drizzle-orm": "^1.0.0-beta.20",
     "elysia": "latest",
     "http-errors": "^2.0.1",
+    "mysql2": "^3.20.0",
     "pg": "^8.16.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/http-errors": "^2.0.5",
     "@antfu/eslint-config": "^6.7.3",
+    "@types/http-errors": "^2.0.5",
     "bun-types": "latest",
     "eslint": "^9.39.2",
     "eslint-plugin-format": "^1.1.0",

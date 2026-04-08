@@ -4,15 +4,17 @@
 
 仅使用以下文件名：
 
-- `env`
-- `env.development` / `env.test` / `env.production`
-- `env.development.local` / `env.test.local` / `env.production.local`
+- `.env`
+- `.env.development` / `.env.test` / `.env.production`
+- `.env.local`
+- `.env.development.local` / `.env.test.local` / `.env.production.local`
 
 加载顺序（后者覆盖前者）：
 
-1. `env`
-2. `env.[环境]`
-3. `env.[环境].local`
+1. `.env`
+2. `.env.[环境]`
+3. `.env.local`
+4. `.env.[环境].local`
 
 可参考 [`.env.example`](/Users/ouyangwenhu/代码/yuumi/packages/server/.env.example)。
 

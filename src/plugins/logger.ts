@@ -7,7 +7,6 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import { Elysia } from 'elysia'
-import { serverConfig } from '@/config/env'
 
 const TRACE_ID_STATE = Symbol.for('yuumi.trace-id')
 const REQUEST_LOG_STATE = Symbol.for('yuumi.request-log')
@@ -162,6 +161,12 @@ export type LogFunction = (data?: unknown) => void
 export function bits(...values: number[]) {
   return values.reduce((mask, value) => mask | value, 0)
 }
+
+const appEnv = import.meta.env.NODE_ENV
+const isDevelopment = appEnv === 'development'
+const envLogMask = import.meta.env.LOG_MASK
+  ? Number.parseInt(import.meta.env.LOG_MASK, 10)
+  : undefined
 
 function normalizeRedactKeys(keys?: readonly string[]) {
   const normalized = new Set<string>(
@@ -862,7 +867,7 @@ function createLogFunction(
 }
 
 export function createLoggerPlugin(options: LoggerPluginOptions = {}) {
-  const defaultMask = serverConfig.isDevelopment ? LogMasks.DEV_DEFAULT : LogMasks.PROD_DEFAULT
+  const defaultMask = isDevelopment ? LogMasks.DEV_DEFAULT : LogMasks.PROD_DEFAULT
   const traceIdHeader = options.traceIdHeader ?? DEFAULT_TRACE_ID_HEADER
   const redactKeys = normalizeRedactKeys(options.redactKeys)
   const redactPlaceholder = options.redactPlaceholder ?? DEFAULT_REDACT_PLACEHOLDER
@@ -871,7 +876,7 @@ export function createLoggerPlugin(options: LoggerPluginOptions = {}) {
     logsMaxBytes: options.logsMaxBytes,
     logsRetentionDays: options.logsRetentionDays,
   })
-  const baseMask = resolveMask(options.mask ?? serverConfig.LOG_MASK, defaultMask)
+  const baseMask = resolveMask(options.mask ?? envLogMask, defaultMask)
 
   return new Elysia({
     name: 'logger-plugin',

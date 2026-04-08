@@ -1,7 +1,6 @@
 import { openapi } from '@elysiajs/openapi'
 import { Elysia } from 'elysia'
 import { z } from 'zod'
-import { serverConfig } from '@/config/env'
 import { createFormatResponsePlugin } from './formatResponse'
 import { createIdempotencyPlugin } from './idempotency'
 import { createAuthorizePlugin } from './authorize'
@@ -11,11 +10,23 @@ import { createLoggerPlugin } from './logger'
 import { createPaginationStandardPlugin } from './paginationStandard'
 import { createRealtimeDomainPlugin } from './realtimeDomain'
 
-const idempotencyPluginOptions = serverConfig.IDEMPOTENCY_TTL_MS === undefined
+const openapiUrl = import.meta.env.OPENAPI_URL
+const logFileDir = import.meta.env.LOG_FILE_DIR?.trim() || undefined
+const logFileMaxBytes = import.meta.env.LOG_FILE_MAX_BYTES
+  ? Number.parseInt(import.meta.env.LOG_FILE_MAX_BYTES, 10)
+  : undefined
+const logFileRetentionDays = import.meta.env.LOG_FILE_RETENTION_DAYS
+  ? Number.parseInt(import.meta.env.LOG_FILE_RETENTION_DAYS, 10)
+  : undefined
+const idempotencyTtlMs = import.meta.env.IDEMPOTENCY_TTL_MS
+  ? Number.parseInt(import.meta.env.IDEMPOTENCY_TTL_MS, 10)
+  : undefined
+
+const idempotencyPluginOptions = idempotencyTtlMs === undefined
   ? undefined
   : {
       options: {
-        cacheTTLMS: serverConfig.IDEMPOTENCY_TTL_MS,
+        cacheTTLMS: idempotencyTtlMs,
       },
     }
 
@@ -32,13 +43,12 @@ export const globalPlugin = new Elysia({
     mapJsonSchema: {
       zod: (schema: z.ZodType) => z.toJSONSchema(schema),
     },
-    path: serverConfig.OPENAPI_URL,
+    path: openapiUrl,
   }))
   .use(createLoggerPlugin({
-    logsDir: serverConfig.LOG_FILE_DIR,
-    logsMaxBytes: serverConfig.LOG_FILE_MAX_BYTES,
-    logsRetentionDays: serverConfig.LOG_FILE_RETENTION_DAYS,
-    mask: serverConfig.LOG_MASK,
+    logsDir: logFileDir,
+    logsMaxBytes: logFileMaxBytes,
+    logsRetentionDays: logFileRetentionDays,
   }))
   .use(createFormatResponsePlugin())
   .use(createIdempotencyPlugin(idempotencyPluginOptions))

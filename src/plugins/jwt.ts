@@ -1,9 +1,10 @@
 import { jwt } from '@elysiajs/jwt'
 import { Elysia } from 'elysia'
 import { z } from 'zod'
-import { serverConfig } from '@/config/env'
 import { userDTO } from '@/models'
 import { ResponseCodeError, responseDTO } from './formatResponse'
+
+const jwtSecret = import.meta.env.JWT_SECRET
 
 export default new Elysia({
   name: 'jwt-plugin',
@@ -15,7 +16,7 @@ export default new Elysia({
     alg: 'HS256',
     exp: '15m',
     name: 'jwt',
-    secret: serverConfig.JWT_SECRET,
+    secret: jwtSecret,
   }))
   .macro({
     useAuth: (enabled: boolean = true) => {

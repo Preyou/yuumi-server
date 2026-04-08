@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/bun-sqlite'
-import drizzleEnv from '@/drizzle-env'
+import env from '@/env'
 import * as tables from './schemas/tables'
 
 function resolveSQLiteSource(url: string) {
@@ -11,7 +11,7 @@ function resolveSQLiteSource(url: string) {
 
 export default drizzle({
   connection: {
-    source: resolveSQLiteSource(drizzleEnv.databaseUrl),
+    source: resolveSQLiteSource(env.databaseUrl),
   },
   schema: tables,
 })

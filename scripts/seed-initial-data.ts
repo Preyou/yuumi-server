@@ -1,5 +1,4 @@
 import { mysql, pg, sqlite } from '../src/db'
-import drizzleEnv from '../src/drizzle-env'
 
 interface SeedPermission {
   isPublic: boolean
@@ -17,7 +16,38 @@ interface SeedUser {
   password: string
 }
 
-const DIALECT = drizzleEnv.dialect
+type DatabaseDialect = 'mysql' | 'postgresql' | 'sqlite'
+type RawEnv = Record<string, string | undefined>
+const rawEnv = import.meta.env as unknown as RawEnv
+
+function normalizeText(input: string | undefined) {
+  const normalized = input?.trim()
+  return normalized ? normalized : undefined
+}
+
+function parseDialect(input: string | undefined): DatabaseDialect {
+  const value = input?.toLowerCase()
+
+  if (!value) {
+    return 'sqlite'
+  }
+
+  if (value === 'mysql') {
+    return 'mysql'
+  }
+
+  if (value === 'postgresql' || value === 'pg' || value === 'postgres') {
+    return 'postgresql'
+  }
+
+  if (value === 'sqlite') {
+    return 'sqlite'
+  }
+
+  throw new Error(`[seed] DIALECT must be mysql|postgresql|sqlite, got "${input}"`)
+}
+
+const DIALECT: DatabaseDialect = parseDialect(normalizeText(rawEnv.DIALECT))
 
 const seedPermissions: SeedPermission[] = [
   {

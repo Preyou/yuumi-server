@@ -1,5 +1,4 @@
 import { defineConfig } from 'drizzle-kit'
-import drizzleEnv from './src/drizzle-env'
 
 const DIALECT_TO_SCHEMA_DIR = {
   mysql: 'mysql',
@@ -15,11 +14,45 @@ const DIALECT_TO_MIGRATION_OUT_DIR = {
 
 type DrizzleDialect = keyof typeof DIALECT_TO_SCHEMA_DIR
 
-const dialect: DrizzleDialect = drizzleEnv.dialect
+type RawEnv = Record<string, string | undefined>
+const rawEnv = import.meta.env as unknown as RawEnv
+
+function normalizeText(input: string | undefined) {
+  const normalized = input?.trim()
+  return normalized ? normalized : undefined
+}
+
+function parseDialect(input: string | undefined): DrizzleDialect {
+  const value = input?.toLowerCase()
+  if (!value) {
+    return 'sqlite'
+  }
+
+  if (value === 'mysql') {
+    return 'mysql'
+  }
+
+  if (value === 'postgresql' || value === 'pg' || value === 'postgres') {
+    return 'postgresql'
+  }
+
+  if (value === 'sqlite') {
+    return 'sqlite'
+  }
+
+  throw new Error(`[drizzle config] DIALECT must be mysql|postgresql|sqlite, got "${input}"`)
+}
+
+const databaseUrl = normalizeText(rawEnv.DATABASE_URL)
+if (!databaseUrl) {
+  throw new Error('[drizzle config] Missing required env var: DATABASE_URL')
+}
+
+const dialect: DrizzleDialect = parseDialect(normalizeText(rawEnv.DIALECT))
 
 export default defineConfig({
   dbCredentials: {
-    url: drizzleEnv.databaseUrl,
+    url: databaseUrl,
     // 或分开写：host, port, user: process.env.DB_USER, password: process.env.DB_PASSWORD 等
   },
   dialect,

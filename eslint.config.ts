@@ -39,4 +39,16 @@ export default antfu(
     },
 
   },
+  {
+    files: ['src/**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          message: 'Use readonly env object from "@/env" instead of import.meta.env in src files',
+          selector: 'MemberExpression[object.type=\'MetaProperty\'][property.name=\'env\']',
+        },
+      ],
+    },
+  },
 )

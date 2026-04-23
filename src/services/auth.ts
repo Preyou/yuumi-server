@@ -26,6 +26,18 @@ export const authService = new Elysia({
         .post(
           '/register',
           async ({ body, db, format }) => {
+            const existingUsers = await db
+              .select({
+                id: db.tables.users.id,
+              })
+              .from(db.tables.users)
+              .where(eq(db.tables.users.email, body.email))
+              .limit(1)
+
+            if (existingUsers[0]) {
+              return format(null, 409)
+            }
+
             await db.insert(db.tables.users).values(body)
             return format(true, 201)
           },
@@ -37,6 +49,7 @@ export const authService = new Elysia({
             domains: [REALTIME_DOMAINS.USER_PROFILE],
             response: {
               201: responseDTO(z.boolean()),
+              409: responseDTO(z.null()),
             },
           },
         )

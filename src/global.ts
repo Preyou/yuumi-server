@@ -1,7 +1,6 @@
 import { openapi } from '@elysiajs/openapi'
 import { Elysia } from 'elysia'
 import { z } from 'zod'
-import { mysql } from './db'
 import env from './env'
 import { createAuthorizePlugin } from './plugins/authorize'
 import { createDatabasePlugin } from './plugins/database'
@@ -12,6 +11,18 @@ import { createListQueryWhitelistPlugin } from './plugins/listQueryWhitelist'
 import { createLoggerPlugin } from './plugins/logger'
 import { createPaginationStandardPlugin } from './plugins/paginationStandard'
 import { createRealtimeDomainPlugin } from './plugins/realtimeDomain'
+
+const databaseModule = await (async () => {
+  if (env.dialect === 'mysql') {
+    return import('./db/mysql')
+  }
+
+  if (env.dialect === 'postgresql') {
+    return import('./db/pg')
+  }
+
+  return import('./db/sqlite')
+})()
 
 const idempotencyPluginOptions = env.idempotencyTtlMs === undefined
   ? undefined
@@ -24,7 +35,7 @@ const idempotencyPluginOptions = env.idempotencyTtlMs === undefined
 export const globalPlugin = new Elysia({
   name: 'global-governance-plugin',
 })
-  .use(createDatabasePlugin(mysql))
+  .use(createDatabasePlugin(databaseModule))
   .use(openapi({
     documentation: {
       info: {

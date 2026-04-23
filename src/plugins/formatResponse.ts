@@ -36,23 +36,6 @@ export class ResponseCodeError extends Error {
   }
 }
 
-const responseFormat = z.object({
-  code: z.number(),
-  data: z.unknown(),
-  message: z.string(),
-})
-
-function buildResponseSchemaByStatus(codeMap: ResponseCodeMap, fallbackHttpStatus: number) {
-  const statusSet = new Set<number>([fallbackHttpStatus])
-
-  for (const definition of Object.values(codeMap)) { statusSet.add(definition.httpStatus) }
-
-  const schemaMap: Record<number, typeof responseFormat> = {}
-  for (const status of statusSet) { schemaMap[status] = responseFormat }
-
-  return schemaMap
-}
-
 function resolveCodeDefinition(
   codeMap: ResponseCodeMap,
   code: RegisteredResponseCode,
@@ -125,7 +108,6 @@ export function createFormatResponsePlugin(options: FormatResponsePluginOptions 
   }
   const defaultSuccessCode = options.defaultSuccessCode ?? DEFAULT_SUCCESS_CODE
   const defaultErrorCode = options.defaultErrorCode ?? DEFAULT_ERROR_CODE
-  const fallbackDefinition = resolveCodeDefinition(codeMap, defaultErrorCode, defaultErrorCode)
 
   return new Elysia({
     name: 'response-format',
@@ -139,7 +121,6 @@ export function createFormatResponsePlugin(options: FormatResponsePluginOptions 
       message: '',
     }))
     .guard({
-      response: buildResponseSchemaByStatus(codeMap, fallbackDefinition.httpStatus),
       schema: 'standalone',
     })
     .onAfterHandle((context) => {

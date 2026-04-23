@@ -6,6 +6,11 @@ import { userDTO } from '@/models'
 import { ResponseCodeError, responseDTO } from './formatResponse'
 
 const jwtSecret = env.jwtSecret
+const AUTH_BYPASS_FLAG = Symbol.for('yuumi.auth.bypass')
+
+type AuthBypassContext = {
+  [AUTH_BYPASS_FLAG]?: boolean
+}
 
 export default new Elysia({
   name: 'jwt-plugin',
@@ -21,8 +26,13 @@ export default new Elysia({
   }))
   .macro({
     useAuth: (enabled: boolean = true) => {
-      if (!enabled)
-        return {}
+      if (!enabled) {
+        return {
+          transform(context) {
+            ;(context as AuthBypassContext)[AUTH_BYPASS_FLAG] = true
+          },
+        }
+      }
 
       return {
         headers: z.object({
@@ -31,7 +41,13 @@ export default new Elysia({
         response: {
           401: responseDTO(z.null()),
         },
-        async resolve({ authSchema, headers, jwt }) {
+        async resolve(context) {
+          const bypassContext = context as typeof context & AuthBypassContext
+          if (bypassContext[AUTH_BYPASS_FLAG]) {
+            return {}
+          }
+
+          const { authSchema, headers, jwt } = context
           const token = headers.authorization?.startsWith('Bearer ')
             ? headers.authorization.slice(7)
             : undefined
